@@ -2,7 +2,7 @@
 #include "interface.h"
 #include <set>
 
-class CNativeHeap : IHeap {
+class CNativeHeap : public IHeap {
 	std::set<int> a;
 public:
 	void insert(int key) override {
@@ -14,7 +14,8 @@ public:
 	void pop_min() override {
 		a.erase(a.begin());
 	}
-	void meld(CNativeHeap other) {
+	void meld(IHeap& iother) {
+		CNativeHeap &other = *dynamic_cast<CNativeHeap*>(&iother);
 		a.insert(other.a.begin(), other.a.end());
 	}
 

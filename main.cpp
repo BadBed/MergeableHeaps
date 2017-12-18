@@ -1,15 +1,15 @@
 #include "pch.h"
 #include <vector>
 
-const bool USE_GOOGLE_TEST = false;
+const bool USE_GOOGLE_TEST = true;
 
 int google_test(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }
-extern class CSplayHeap;
+
 void manual_test() {
-	CSplayHeap a;
+	/*CSplayHeap a;
 	a.insert(7);
 	a.insert(7);
 	a.pop_min();
@@ -17,7 +17,7 @@ void manual_test() {
 	a.insert(4);
 	a.insert(4);
 	a.insert(2);
-	a.size();
+	a.size();*/
 }
 
 int main(int argc, char **argv) {

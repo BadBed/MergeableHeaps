@@ -31,9 +31,11 @@ public:
 	CBinomialTree();
 	explicit CBinomialTree(int key);
 	CBinomialTree(CBinomialNode* root, int order);
-	~CBinomialTree();
 
-	CBinomialHeap destroy();
+	void free();//delete all nodes
+	void clear() { root_ = nullptr; }//make heap empty, doesn't delete nodes
+
+	CBinomialHeap destroy();//Delete root, make heap with other elements
 	void meld(CBinomialTree& other);
 
 	bool empty() const { return root_ == nullptr; }
@@ -53,11 +55,12 @@ private:
 	int find_min_tree() const ;
 public:
 	CBinomialHeap();
+	~CBinomialHeap();
 	
 	void insert(int key) override;
 	int get_min() const override;
 	void pop_min() override;
-	void meld(CBinomialHeap& other);
+	void meld(IHeap& iother);
 
 	size_t size() const override{ return size_; }
 };
@@ -93,7 +96,7 @@ CBinomialTree::CBinomialTree(CBinomialNode* root, int order) :
 	order_(order),
 	root_(root) {}
 
-CBinomialTree::~CBinomialTree() {
+void CBinomialTree::free() {
 	if (root_ != nullptr)
 		delete root_;
 }
@@ -108,19 +111,19 @@ void CBinomialTree::meld(CBinomialTree& other) {
 	root_->childs_.push_back(other.root_);
 	++order_;
 
-	other.root_ = nullptr;
+	other.clear();
 }
 
 CBinomialHeap CBinomialTree::destroy() {
-	CBinomialHeap result;
+	CBinomialHeap* result = new CBinomialHeap();
 	for (int i = 0; i < order_; i++) {
-		result.add_tree(CBinomialTree(root_->childs_[i], i));
+		result->add_tree(CBinomialTree(root_->childs_[i], i));
 		root_->childs_[i] = nullptr;
 	}
 
 	delete root_;
-	root_ = nullptr;
-	return result;
+	clear();
+	return (*result);
 }
 
 //----------------------------------------------------------------------------
@@ -128,11 +131,18 @@ CBinomialHeap CBinomialTree::destroy() {
 CBinomialHeap::CBinomialHeap() : 
 	size_(0){}
 
+CBinomialHeap::~CBinomialHeap() {
+	for (size_t i = 0; i < trees_.size(); ++i)
+		trees_[i].free();
+}
+
 void CBinomialHeap::add_tree(CBinomialTree& tree) {
+	if (tree.empty()) return;
+
 	size_ += (size_t)pow(2, tree.order());
 	push_tree(tree);
 
-	tree = CBinomialTree();
+	tree.clear();
 }
 
 void CBinomialHeap::push_tree(CBinomialTree tree) {
@@ -148,7 +158,6 @@ void CBinomialHeap::push_tree(CBinomialTree tree) {
 		tree.meld(trees_[ord]);
 		push_tree(tree);
 	}
-	tree = CBinomialTree();
 }
 
 void CBinomialHeap::insert(int key) {
@@ -177,7 +186,8 @@ int CBinomialHeap::get_min() const {
 	return trees_[index].get_min();
 }
 
-void CBinomialHeap::meld(CBinomialHeap& other) {
+void CBinomialHeap::meld(IHeap& iother) {
+	CBinomialHeap &other = *dynamic_cast<CBinomialHeap*>(&iother);
 	for (size_t i = 0; i < other.trees_.size(); i++) {
 		add_tree(other.trees_[i]);
 	}
@@ -189,5 +199,6 @@ void CBinomialHeap::meld(CBinomialHeap& other) {
 void CBinomialHeap::pop_min() {
 	int index = find_min_tree();
 	CBinomialHeap corpse = trees_[index].destroy();
+	size_ -= pow(2, index);
 	meld(corpse);
 }

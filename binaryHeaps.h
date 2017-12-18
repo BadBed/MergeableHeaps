@@ -20,9 +20,9 @@ public:
 	void insert(int key) override;
 	int get_min() const override;
 	void pop_min() override;
-	void meld(CBinaryHeap& other);
+	void meld(IHeap& iother);
 
-	size_t size() const override{ return size_; }
+	size_t size() const override { return size_; }
 };
 
 //---------------------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ public:
 	CNodeSplay* left = nullptr;
 	CNodeSplay* right = nullptr;
 
-	CNodeSplay(int _key): key(_key) {}
+	CNodeSplay(int _key) : key(_key) {}
 	~CNodeSplay();
 	void refresh() {};
 };
@@ -52,8 +52,8 @@ public:
 	CNodeLeftest* left = nullptr;
 	CNodeLeftest* right = nullptr;
 
-	CNodeLeftest(): rang(0), key(0), left(nullptr), right(nullptr) {}
-	CNodeLeftest(int _key): rang(1), key(_key), left(nullptr), right(nullptr){}
+	CNodeLeftest() : rang(0), key(0), left(nullptr), right(nullptr) {}
+	CNodeLeftest(int _key) : rang(1), key(_key), left(nullptr), right(nullptr) {}
 	~CNodeLeftest();
 
 	friend size_t get_rang(CNodeLeftest* node);
@@ -62,7 +62,7 @@ public:
 
 size_t get_rang(CNodeLeftest* node);
 
-class CIsSwapLeftest{
+class CIsSwapLeftest {
 public:
 	CIsSwapLeftest() {}
 	bool operator()(CNodeLeftest* node) const {
@@ -87,7 +87,7 @@ CBinaryHeap<NODE, IS_SWAP>::operator=(const CBinaryHeap<NODE, IS_SWAP>& other) {
 }
 
 template <class NODE, class IS_SWAP>
-NODE* CBinaryHeap<NODE, IS_SWAP>::meld_nodes (NODE* first, NODE* second) {
+NODE* CBinaryHeap<NODE, IS_SWAP>::meld_nodes(NODE* first, NODE* second) {
 	if (first == nullptr) return second;
 	if (second == nullptr) return first;
 
@@ -100,7 +100,8 @@ NODE* CBinaryHeap<NODE, IS_SWAP>::meld_nodes (NODE* first, NODE* second) {
 }
 
 template <class NODE, class IS_SWAP>
-void CBinaryHeap<NODE, IS_SWAP>::meld(CBinaryHeap& other) {
+void CBinaryHeap<NODE, IS_SWAP>::meld(IHeap& iother) {
+	CBinaryHeap<NODE, IS_SWAP> &other = *dynamic_cast<CBinaryHeap<NODE, IS_SWAP>*>(&iother);
 	root_ = meld_nodes(root_, other.root_);
 	size_ += other.size_;
 	other.root_ = nullptr;
