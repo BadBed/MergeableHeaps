@@ -22,11 +22,10 @@ const int COUNT_OF_TYPES = 6;
 //#############################################################################################
 
 class CEvent{
-private:
+public:
 	int type;//0 addHeap, 1 insert, 2 getMin, 3 popMin, 4 meld, 5 size
 	int i, key;
 
-public:
 	CEvent (int min_key, int max_key):
 		type (0),
 		i (0),
@@ -37,8 +36,6 @@ public:
 		i (random(n - 1)),
 		key (random(min_key, max_key)) {}
 
-	bool is_correct(vector<size_t>& sizes) const;
-
 	template<class THeap>
 	int do_it(vector<IHeap*>& heaps) const;
 
@@ -47,20 +44,6 @@ public:
 
 //implementation
 //----------------------------------------------------------------------------------------
-
-bool CEvent::is_correct(vector<size_t>& sizes) const {
-	if (type == 4 && i == (int)(sizes.size() - 1)) return false;
-	if ((type == 2 || type == 3) && sizes[i] == 0) return false;
-
-	if (type == 0) sizes.push_back(0);
-	if (type == 1) ++sizes[i];
-	if (type == 3) --sizes[i];
-	if (type == 4) {
-		sizes[i] += sizes.back();
-		sizes.pop_back();
-	}
-	return true;
-}
 
 string CEvent::log() const {
 	string result = to_string(type) + " ";
@@ -102,15 +85,58 @@ int CEvent::do_it(vector<IHeap*>& heaps) const {
 
 //######################################################################
 
-vector<CEvent> gen_random_events(size_t size, int min_key, int max_key) {
+class FIsCorrectNormal {
+public:
+	bool operator()(CEvent event, vector<size_t>& sizes) {
+		if (event.type == 4 && event.i == (int)(sizes.size() - 1))
+			return false;
+		if ((event.type == 2 || event.type == 3) && sizes[event.i] == 0)
+			return false;
+
+		if (event.type == 0) 
+			sizes.push_back(0);
+		if (event.type == 1) 
+			++sizes[event.i];
+		if (event.type == 3) 
+			--sizes[event.i];
+		if (event.type == 4) {
+			sizes[event.i] += sizes.back();
+			sizes.pop_back();
+		}
+		return true;
+	}
+};
+
+class FIsCorrectBigHeaps {
+private:
+	size_t max_size_ = 10;
+public:
+	bool operator()(CEvent event, vector<size_t>& sizes) {
+		FIsCorrectNormal base;
+		if (event.type == 0 && sizes.size() >= max_size_) {
+			return false;
+		}
+		else {
+			return base(event, sizes);
+		}
+	}
+};
+
+template<class TIsCorrect>
+vector<CEvent> gen_random_events(size_t size, size_t start_size, int min_key, int max_key) {
 	vector<CEvent> events;
 	vector<size_t> sizes;
-	events.push_back(CEvent(min_key, max_key));
-	events[0].is_correct(sizes);
+	TIsCorrect is_correct;
+	
+	while (events.size() < start_size) {
+		CEvent new_event = CEvent(min_key, max_key);
+		if (is_correct(new_event, sizes))
+			events.push_back(new_event);
+	}
 
 	while (events.size() < size) {
 		CEvent new_event = CEvent(sizes.size(), min_key, max_key);
-		if (new_event.is_correct(sizes)) 
+		if (is_correct(new_event, sizes)) 
 			events.push_back(new_event);
 	}
 	return events;
@@ -153,12 +179,11 @@ public:
 //#################################################################################
 
 template<class THeap, class TSafetyHeap>
-bool correct_test(size_t coutnt_of_iter, int min_key, int max_key) {
-	vector<CEvent> events = gen_random_events(coutnt_of_iter, min_key, max_key);
+bool correct_test(const vector<CEvent>& events) {
 	CTester<THeap> tester(events);
 	CTester<TSafetyHeap> true_tester(events);
 
-	for (size_t i = 0; i < coutnt_of_iter; ++i) {
+	for (size_t i = 0; i < events.size(); ++i) {
 		try {
 			if (tester.do_event(i) != true_tester.do_event(i)) {
 				std::cout << tester.log();
@@ -188,7 +213,15 @@ void time_test(const vector<CEvent>& events) {
 template<class THeap, class TSafetyHeap>
 void many_correct_tests() {
 	for (int i = 0; i < 1000; ++i) {
-		if (!correct_test<THeap, TSafetyHeap>(20, -10, 10)) {
+		if (!correct_test<THeap, TSafetyHeap>(
+					gen_random_events<FIsCorrectNormal>(20, 1, -10, 10))) {
+			cout << "Error on test " << i << "\n";
+		}
+	}
+
+	for (int i = 0; i < 10; ++i) {
+		if (!correct_test<THeap, TSafetyHeap>(
+					gen_random_events<FIsCorrectBigHeaps>(100, 1, -10, 10))) {
 			cout << "Error on test " << i << "\n";
 		}
 	}
@@ -206,16 +239,41 @@ TEST (correct_auto, binomial) {
 	many_correct_tests<CBinomialHeap, CNativeHeap>();
 }
 
-TEST (time, allHeaps) {
-	vector<CEvent> events = gen_random_events(1000000, -10, 10);
+TEST (time, random) {
+	vector<CEvent> events = gen_random_events<FIsCorrectNormal>(1000000, 1, -10, 10);
 	cout << "Binomial heaps: ";
-	time_test<CBinomialHeap>(events);//2.089
+	time_test<CBinomialHeap>(events);//2.0
 
 	cout << "Leftest heaps: ";
-	time_test<CLeftestHeap>(events);//0.57
+	time_test<CLeftestHeap>(events);//0.6
 
 	cout << "Splay heaps: ";
-	time_test<CSplayHeap>(events);//0.386
+	time_test<CSplayHeap>(events);//0.35
+}
+
+TEST(time, many_heaps) {
+	size_t n = 1e6;
+	vector<CEvent> events = gen_random_events<FIsCorrectNormal>(n, n/2, -10, 10);
+	cout << "Binomial heaps: ";
+	time_test<CBinomialHeap>(events);//0.95
+
+	cout << "Leftest heaps: ";
+	time_test<CLeftestHeap>(events);//0.5
+
+	cout << "Splay heaps: ";
+	time_test<CSplayHeap>(events);//0.5
+}
+
+TEST(time, big_heaps) {
+	vector<CEvent> events = gen_random_events<FIsCorrectBigHeaps>(100000, 1, -10, 10);
+	cout << "Binomial heaps: ";
+	time_test<CBinomialHeap>(events);//0.2
+
+	cout << "Leftest heaps: ";
+	time_test<CLeftestHeap>(events);//0.3
+
+	cout << "Splay heaps: ";
+	time_test<CSplayHeap>(events);//0.035
 }
 
 }//test

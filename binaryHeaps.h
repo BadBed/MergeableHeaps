@@ -9,7 +9,7 @@ class CBinaryHeap : public IHeap {
 private:
 	NODE* root_;
 	size_t size_;
-	const IS_SWAP is_swap = IS_SWAP();
+	const IS_SWAP is_swap_;
 
 	NODE* meld_nodes(NODE* first, NODE* second);
 public:
@@ -33,10 +33,25 @@ public:
 	CNodeSplay* left = nullptr;
 	CNodeSplay* right = nullptr;
 
-	CNodeSplay(int _key) : key(_key) {}
+	explicit CNodeSplay(int _key) : key(_key) {}
 	~CNodeSplay();
-	void refresh() {};
 };
+
+struct CNodeLeftest {
+public:
+	size_t rang;
+	int key;
+	CNodeLeftest* left = nullptr;
+	CNodeLeftest* right = nullptr;
+
+	CNodeLeftest() : rang(0), key(0), left(nullptr), right(nullptr) {}
+	explicit CNodeLeftest(int _key) : rang(1), key(_key), left(nullptr), right(nullptr) {}
+	~CNodeLeftest();
+
+	friend size_t get_rang(CNodeLeftest* node);
+};
+
+size_t get_rang(CNodeLeftest* node);
 
 class CIsSwapSplay {
 public:
@@ -44,28 +59,11 @@ public:
 	bool operator()(CNodeSplay* node) const { return true; }
 };
 
-struct CNodeLeftest {
-private:
-	size_t rang;
-public:
-	int key;
-	CNodeLeftest* left = nullptr;
-	CNodeLeftest* right = nullptr;
-
-	CNodeLeftest() : rang(0), key(0), left(nullptr), right(nullptr) {}
-	CNodeLeftest(int _key) : rang(1), key(_key), left(nullptr), right(nullptr) {}
-	~CNodeLeftest();
-
-	friend size_t get_rang(CNodeLeftest* node);
-	void refresh() { rang = std::max(get_rang(left), get_rang(right)); }
-};
-
-size_t get_rang(CNodeLeftest* node);
-
 class CIsSwapLeftest {
 public:
 	CIsSwapLeftest() {}
 	bool operator()(CNodeLeftest* node) const {
+		node->rang = std::max(get_rang(node->left), get_rang(node->right)) + 1;
 		return get_rang(node->left) >= get_rang(node->right);
 	}
 };
@@ -93,8 +91,7 @@ NODE* CBinaryHeap<NODE, IS_SWAP>::meld_nodes(NODE* first, NODE* second) {
 
 	if (second->key < first->key) std::swap(first, second);
 	first->right = meld_nodes(first->right, second);
-	if (is_swap(first)) std::swap(first->left, first->right);
-	first->refresh();
+	if (is_swap_(first)) std::swap(first->left, first->right);
 
 	return first;
 }
