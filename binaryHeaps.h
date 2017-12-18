@@ -4,12 +4,12 @@
 
 //Interface
 
-template <class NODE, class IS_SWAP>
+template <class NODE, class UPDATE_NODE>
 class CBinaryHeap : public IHeap {
 private:
 	NODE* root_;
 	size_t size_;
-	const IS_SWAP is_swap_;
+	const UPDATE_NODE update_node_;
 
 	NODE* meld_nodes(NODE* first, NODE* second);
 public:
@@ -53,66 +53,69 @@ public:
 
 size_t get_rang(CNodeLeftest* node);
 
-class CIsSwapSplay {
+class CUpdateNodeSplay {
 public:
-	CIsSwapSplay() {}
-	bool operator()(CNodeSplay* node) const { return true; }
+	CUpdateNodeSplay() {}
+	void operator()(CNodeSplay* node) const {
+		std::swap(node->left,node->right);
+	}
 };
 
-class CIsSwapLeftest {
+class CUpdateNodeLeftest {
 public:
-	CIsSwapLeftest() {}
-	bool operator()(CNodeLeftest* node) const {
+	CUpdateNodeLeftest() {}
+	void operator()(CNodeLeftest* node) const {
 		node->rang = std::max(get_rang(node->left), get_rang(node->right)) + 1;
-		return get_rang(node->left) >= get_rang(node->right);
+		if (get_rang(node->left) >= get_rang(node->right))
+			std::swap(node->left,node->right);
 	}
 };
 
 //---------------------------------------------------------------------------------------
 
-typedef CBinaryHeap<CNodeSplay, CIsSwapSplay> CSplayHeap;
-typedef CBinaryHeap<CNodeLeftest, CIsSwapLeftest> CLeftestHeap;
+typedef CBinaryHeap<CNodeSplay, CUpdateNodeSplay> CSplayHeap;
+typedef CBinaryHeap<CNodeLeftest, CUpdateNodeLeftest> CLeftestHeap;
 
 //Implementation
 //######################################################################################
 
-template <class NODE, class IS_SWAP>
-CBinaryHeap<NODE, IS_SWAP>&
-CBinaryHeap<NODE, IS_SWAP>::operator=(const CBinaryHeap<NODE, IS_SWAP>& other) {
+template <class NODE, class UPDATE_NODE>
+CBinaryHeap<NODE, UPDATE_NODE>&
+CBinaryHeap<NODE, UPDATE_NODE>::operator=(const CBinaryHeap<NODE, UPDATE_NODE>& other) {
 	root_ = other.root_;
 	size_ = other.size_;
 	return *this;
 }
 
-template <class NODE, class IS_SWAP>
-NODE* CBinaryHeap<NODE, IS_SWAP>::meld_nodes(NODE* first, NODE* second) {
+template <class NODE, class UPDATE_NODE>
+NODE* CBinaryHeap<NODE, UPDATE_NODE>::meld_nodes(NODE* first, NODE* second) {
 	if (first == nullptr) return second;
 	if (second == nullptr) return first;
 
 	if (second->key < first->key) std::swap(first, second);
 	first->right = meld_nodes(first->right, second);
-	if (is_swap_(first)) std::swap(first->left, first->right);
+	update_node_(first);
 
 	return first;
 }
 
-template <class NODE, class IS_SWAP>
-void CBinaryHeap<NODE, IS_SWAP>::meld(IHeap& iother) {
-	CBinaryHeap<NODE, IS_SWAP> &other = *dynamic_cast<CBinaryHeap<NODE, IS_SWAP>*>(&iother);
+template <class NODE, class UPDATE_NODE>
+void CBinaryHeap<NODE, UPDATE_NODE>::meld(IHeap& iother) {
+	CBinaryHeap<NODE, UPDATE_NODE> &other = *dynamic_cast<CBinaryHeap<NODE, UPDATE_NODE>*>(&iother);
 	root_ = meld_nodes(root_, other.root_);
 	size_ += other.size_;
 	other.root_ = nullptr;
 	other.size_ = 0;
 }
 
-template <class NODE, class IS_SWAP>
-void CBinaryHeap<NODE, IS_SWAP>::insert(int key) {
+template <class NODE, class UPDATE_NODE>
+void CBinaryHeap<NODE, UPDATE_NODE>::insert(int key) {
 	root_ = meld_nodes(root_, new NODE(key));
 	++size_;
 }
 
-template <class NODE, class IS_SWAP>
-void CBinaryHeap<NODE, IS_SWAP>::pop_min() {
+template <class NODE, class UPDATE_NODE>
+void CBinaryHeap<NODE, UPDATE_NODE>::pop_min() {
 	if (size_ == 0) throw "Mergeable Heaps Exeption: pop_min used to empty heap";
 	--size_;
 
@@ -124,8 +127,8 @@ void CBinaryHeap<NODE, IS_SWAP>::pop_min() {
 	delete old_root;
 }
 
-template <class NODE, class IS_SWAP>
-int CBinaryHeap<NODE, IS_SWAP>::get_min() const {
+template <class NODE, class UPDATE_NODE>
+int CBinaryHeap<NODE, UPDATE_NODE>::get_min() const {
 	if (size_ == 0) throw "Mergeable Heaps Exeption: get_min used to empty heap";
 	return root_->key;
 }

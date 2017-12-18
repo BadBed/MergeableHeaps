@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string>
 #include <utility>
+#include <map>
 
 using std::vector;
 using std::string;
@@ -16,25 +17,73 @@ extern int random(int max);
 extern int random(int min, int max);
 
 namespace test{
-const int COUNT_OF_TYPES = 6;
-
 //CEvent, interface
 //#############################################################################################
 
+enum CEventType { ADD_HEAP = 0, INSERT, GET_MIN, POP_MIN, MELD, SIZE, COUNT_OF_TYPES };
+#define FIRST_EVENT_TYPE ADD_HEAP
+
+//###########################################################################################
+
+struct CTypesChances {
+private:
+	std::map<CEventType, double> a;
+	void norm() {
+		double sum = 0.0;
+		for (int i = 0; i < COUNT_OF_TYPES; ++i) {
+			CEventType x = static_cast<CEventType>(i);
+			sum += a[x];
+		}
+		if (sum == 0.0) {
+			return;
+		}
+		for (int i = 0; i < COUNT_OF_TYPES; ++i) {
+			CEventType x = static_cast<CEventType>(i);
+			a[x] /= sum;
+		}
+	}
+public:
+	CTypesChances() {
+		for (int i = 0; i < COUNT_OF_TYPES; ++i) {
+			CEventType x = static_cast<CEventType>(i);
+			a[x] = 1.0;
+		}
+		norm();
+	}
+	void change(CEventType event_type, double multiplicator) {
+		a[event_type] *= multiplicator;
+		norm();
+	}
+	CEventType get_rand() {
+		double rnd = (double)random(1e7) / 1e7;
+		double sum = 0.0;
+		for (int i = 0; i < COUNT_OF_TYPES; ++i) {
+			CEventType x = static_cast<CEventType>(i);
+			sum += a[x];
+			if (sum >= rnd)
+				return x;
+		}
+		assert(false);
+	}
+};
+
+//########################################################################################
+
 class CEvent{
 public:
-	int type;//0 addHeap, 1 insert, 2 getMin, 3 popMin, 4 meld, 5 size
+	CEventType type;//0 addHeap, 1 insert, 2 getMin, 3 popMin, 4 meld, 5 size
 	int i, key;
 
 	CEvent (int min_key, int max_key):
-		type (0),
+		type (ADD_HEAP),
 		i (0),
 		key (random(min_key, max_key)) {}
 
-	CEvent (size_t n, int min_key, int max_key):
-		type (random(COUNT_OF_TYPES - 1)),
-		i (random(n - 1)),
-		key (random(min_key, max_key)) {}
+	CEvent (size_t n, int min_key, int max_key, CTypesChances generator = CTypesChances()):
+		i (random(n-1)),
+		key (random(min_key, max_key)) {
+		type = generator.get_rand();
+	}
 
 	template<class THeap>
 	int do_it(vector<IHeap*>& heaps) const;
@@ -48,7 +97,7 @@ public:
 string CEvent::log() const {
 	string result = to_string(type) + " ";
 
-	if (type == 1) {
+	if (type == INSERT) {
 		result += to_string(i) + " " + to_string(key);	
 	}
 	else {
@@ -61,23 +110,23 @@ string CEvent::log() const {
 
 template <class THeap>
 int CEvent::do_it(vector<IHeap*>& heaps) const {
-	if (type == 0) {
+	if (type == ADD_HEAP) {
 		heaps.push_back(new THeap());
 	}
-	if (type == 1) {
+	if (type == INSERT) {
 		heaps[i]->insert(key);
 	}
-	if (type == 2) {
+	if (type == GET_MIN) {
 		return heaps[i]->get_min();
 	}
-	if (type == 3) {
+	if (type == POP_MIN) {
 		heaps[i]->pop_min();
 	}
-	if (type == 4) {
+	if (type == MELD) {
 		heaps[i]->meld(*(heaps.back()));
 		heaps.pop_back();
 	}
-	if (type == 5) {
+	if (type == SIZE) {
 		return (int)heaps[i]->size();
 	}
 	return 0;
@@ -88,18 +137,18 @@ int CEvent::do_it(vector<IHeap*>& heaps) const {
 class FIsCorrectNormal {
 public:
 	bool operator()(CEvent event, vector<size_t>& sizes) {
-		if (event.type == 4 && event.i == (int)(sizes.size() - 1))
+		if (event.type == MELD && event.i == (int)(sizes.size() - 1))
 			return false;
-		if ((event.type == 2 || event.type == 3) && sizes[event.i] == 0)
+		if ((event.type == POP_MIN|| event.type == GET_MIN) && sizes[event.i] == 0)
 			return false;
 
-		if (event.type == 0) 
+		if (event.type == ADD_HEAP) 
 			sizes.push_back(0);
-		if (event.type == 1) 
+		if (event.type == INSERT) 
 			++sizes[event.i];
-		if (event.type == 3) 
+		if (event.type == POP_MIN) 
 			--sizes[event.i];
-		if (event.type == 4) {
+		if (event.type == MELD) {
 			sizes[event.i] += sizes.back();
 			sizes.pop_back();
 		}
@@ -123,7 +172,9 @@ public:
 };
 
 template<class TIsCorrect>
-vector<CEvent> gen_random_events(size_t size, size_t start_size, int min_key, int max_key) {
+vector<CEvent> gen_random_events(size_t size, size_t start_size, int min_key, 
+				int max_key, CTypesChances random_type = CTypesChances()) {
+
 	vector<CEvent> events;
 	vector<size_t> sizes;
 	TIsCorrect is_correct;
@@ -135,7 +186,7 @@ vector<CEvent> gen_random_events(size_t size, size_t start_size, int min_key, in
 	}
 
 	while (events.size() < size) {
-		CEvent new_event = CEvent(sizes.size(), min_key, max_key);
+		CEvent new_event = CEvent(sizes.size(), min_key, max_key, random_type);
 		if (is_correct(new_event, sizes)) 
 			events.push_back(new_event);
 	}
@@ -251,20 +302,9 @@ TEST (time, random) {
 	time_test<CSplayHeap>(events);//0.35
 }
 
-TEST(time, many_heaps) {
-	size_t n = 1e6;
-	vector<CEvent> events = gen_random_events<FIsCorrectNormal>(n, n/2, -10, 10);
-	cout << "Binomial heaps: ";
-	time_test<CBinomialHeap>(events);//0.95
-
-	cout << "Leftest heaps: ";
-	time_test<CLeftestHeap>(events);//0.5
-
-	cout << "Splay heaps: ";
-	time_test<CSplayHeap>(events);//0.5
-}
-
 TEST(time, big_heaps) {
+	CTypesChances chances;
+	chances.change(INSERT, 2.0);
 	vector<CEvent> events = gen_random_events<FIsCorrectBigHeaps>(100000, 1, -10, 10);
 	cout << "Binomial heaps: ";
 	time_test<CBinomialHeap>(events);//0.2
