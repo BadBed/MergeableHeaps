@@ -171,7 +171,7 @@ int CBinomialHeap::find_min_tree() const {
 
 	int best;
 	int result = -1;
-	for (size_t i = 1; i < trees_.size(); ++i) {
+	for (size_t i = 0; i < trees_.size(); ++i) {
 		if (!trees_[i].empty() && (result == -1 || trees_[i].get_min() < best)) {
 			best = trees_[i].get_min();
 			result = i;

@@ -3,7 +3,7 @@
 #include <set>
 
 class CNativeHeap : public IHeap {
-	std::set<int> a;
+	std::multiset<int> a;
 public:
 	void insert(int key) override {
 		a.insert(key);

@@ -138,10 +138,14 @@ public:
 	}
 
 	string log() {
+		return log(last_test_);
+	}
+	string log(int x) const {
 		string result;
-		for (int i = 0; i <= last_test_; ++i)
+		for (int i = 0; i <= x; ++i)
 			result += events_[i].log();
 		return result;
+
 	}
 };
 
@@ -183,7 +187,7 @@ void time_test(const vector<CEvent>& events) {
 
 template<class THeap, class TSafetyHeap>
 void many_correct_tests() {
-	for (int i = 0; i < 10000; ++i) {
+	for (int i = 0; i < 1000; ++i) {
 		if (!correct_test<THeap, TSafetyHeap>(20, -10, 10)) {
 			cout << "Error on test " << i << "\n";
 		}
@@ -203,15 +207,15 @@ TEST (correct_auto, binomial) {
 }
 
 TEST (time, allHeaps) {
-	vector<CEvent> events = gen_random_events(1000000, INT_MIN, INT_MAX);
+	vector<CEvent> events = gen_random_events(1000000, -10, 10);
 	cout << "Binomial heaps: ";
-	time_test<CBinomialHeap>(events);
+	time_test<CBinomialHeap>(events);//2.089
 
 	cout << "Leftest heaps: ";
-	time_test<CLeftestHeap>(events);
+	time_test<CLeftestHeap>(events);//0.57
 
 	cout << "Splay heaps: ";
-	time_test<CSplayHeap>(events);
+	time_test<CSplayHeap>(events);//0.386
 }
 
 }//test
